@@ -11,13 +11,15 @@ import {
   Bell,
   ArrowRight,
   TrendingDown,
-  Wallet
+  Wallet,
+  Plus
 } from 'lucide-react';
 import UploadZone from './components/UploadZone';
 import DashboardStats from './components/DashboardStats';
 import AnalyticsCharts from './components/AnalyticsCharts';
 import TransactionTable from './components/TransactionTable';
 import EditModal from './components/EditModal';
+import AddModal from './components/AddModal';
 import { API_URL } from './config';
 
 export default function App() {
@@ -29,6 +31,15 @@ export default function App() {
   // Edit modal state
   const [selectedTx, setSelectedTx] = useState(null);
   const [isEditOpen, setIsEditOpen] = useState(false);
+
+  // Add modal state
+  const [isAddOpen, setIsAddOpen] = useState(false);
+
+  // Add manual transaction handler
+  const handleAddSave = (newTx) => {
+    setTransactions(prev => [newTx, ...prev]);
+    setActiveTab('history');
+  };
 
   // Fetch transactions from backend
   const fetchTransactions = async () => {
@@ -297,8 +308,17 @@ export default function App() {
                   <h2 className="text-[26px] md:text-[32px] font-bold text-primary dark:text-white">Receipt Scanner</h2>
                   <p className="text-[14px] text-on-surface-variant dark:text-slate-400 mt-1">Upload files to extract transaction details automatically.</p>
                 </div>
-                <div className="max-w-2xl mx-auto py-8">
+                <div className="max-w-2xl mx-auto py-8 space-y-6">
                   <UploadZone onScanSuccess={handleScanSuccess} />
+                  <div className="text-center">
+                    <span className="text-[13px] text-on-surface-variant dark:text-slate-400">Don't have a receipt? </span>
+                    <button
+                      onClick={() => setIsAddOpen(true)}
+                      className="text-[13px] font-bold text-[#006c49] dark:text-[#6ffbbe] hover:underline"
+                    >
+                      Enter details manually
+                    </button>
+                  </div>
                 </div>
               </div>
             )}
@@ -317,9 +337,18 @@ export default function App() {
             {/* 4. HISTORY TAB */}
             {activeTab === 'history' && (
               <div className="space-y-6">
-                <div>
-                  <h2 className="text-[26px] md:text-[32px] font-bold text-primary dark:text-white">Transactions</h2>
-                  <p className="text-[14px] text-on-surface-variant dark:text-slate-400 mt-1">Review, search, and manually update your entries.</p>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                  <div>
+                    <h2 className="text-[26px] md:text-[32px] font-bold text-primary dark:text-white">Transactions</h2>
+                    <p className="text-[14px] text-on-surface-variant dark:text-slate-400 mt-1">Review, search, and manually update your entries.</p>
+                  </div>
+                  <button
+                    onClick={() => setIsAddOpen(true)}
+                    className="self-start sm:self-center px-4 py-2.5 bg-accent hover:bg-[#059669] text-white rounded-[10px] text-[14px] font-bold flex items-center justify-center gap-1.5 shadow-[0_4px_12px_rgba(16,185,129,0.2)] active:scale-95 duration-150 transition-colors"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Add Transaction</span>
+                  </button>
                 </div>
                 <TransactionTable 
                   transactions={transactions} 
@@ -396,6 +425,13 @@ export default function App() {
           setSelectedTx(null);
         }} 
         onSave={handleEditSave} 
+      />
+
+      {/* Add Modal Overlay */}
+      <AddModal
+        isOpen={isAddOpen}
+        onClose={() => setIsAddOpen(false)}
+        onSave={handleAddSave}
       />
     </div>
   );

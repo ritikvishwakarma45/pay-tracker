@@ -174,6 +174,41 @@ app.post('/api/transactions/scan', upload.single('file'), async (req, res) => {
   }
 });
 
+// POST /api/transactions: Manually create a new transaction
+app.post('/api/transactions', async (req, res) => {
+  try {
+    const { amount, merchantName, date, category, paymentMode } = req.body;
+    
+    if (!amount || Number(amount) <= 0) {
+      return res.status(400).json({ error: 'Please enter a valid amount.' });
+    }
+    if (!merchantName || !merchantName.trim()) {
+      return res.status(400).json({ error: 'Please enter a merchant/receiver name.' });
+    }
+    if (!date) {
+      return res.status(400).json({ error: 'Please select a date.' });
+    }
+
+    const newTransaction = new Transaction({
+      amount: Number(amount),
+      merchantName: merchantName.trim(),
+      date: new Date(date),
+      category: category || 'Others',
+      paymentMode: paymentMode || 'UPI',
+      isAIGenerated: false
+    });
+
+    console.log(newTransaction);
+    return;
+
+    const savedTransaction = await newTransaction.save();
+    res.status(201).json(savedTransaction);
+  } catch (error) {
+    console.error('Error creating manual transaction:', error);
+    res.status(500).json({ error: 'Failed to create transaction.' });
+  }
+});
+
 // GET /api/transactions: Fetch all transactions sorted by date (newest first)
 app.get('/api/transactions', async (req, res) => {
   try {
