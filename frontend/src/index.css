@@ -1,0 +1,44 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-white text-primary antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+/* Vertical Receipt Scanning Keyframes */
+@keyframes scan-vertical {
+  0% {
+    top: 5%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    top: 95%;
+    opacity: 0;
+  }
+}
+
+.animate-scan {
+  animation: scan-vertical 2.5s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+}
+
+.viewfinder-corner {
+  position: absolute;
+  width: 40px;
+  height: 40px;
+  border-color: #006c49;
+  border-style: solid;
+}
+.corner-tl { top: 0; left: 0; border-width: 3px 0 0 3px; border-top-left-radius: 16px; }
+.corner-tr { top: 0; right: 0; border-width: 3px 3px 0 0; border-top-right-radius: 16px; }
+.corner-bl { bottom: 0; left: 0; border-width: 0 0 3px 3px; border-bottom-left-radius: 16px; }
+.corner-br { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-bottom-right-radius: 16px; }

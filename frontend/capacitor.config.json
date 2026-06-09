@@ -1,0 +1,5 @@
+{
+  "appId": "com.paytracker.app",
+  "appName": "Pay Tracker",
+  "webDir": "dist"
+}
