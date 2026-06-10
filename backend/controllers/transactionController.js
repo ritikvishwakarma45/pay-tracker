@@ -1,5 +1,5 @@
 const Transaction = require('../models/Transaction');
-const { analyzeReceipt } = require('../utils/geminiHelper');
+const { analyzeReceipt } = require('../utils/groqHelper');
 
 // @desc    Scan receipt and save transaction
 // @route   POST /api/transactions/scan
@@ -10,7 +10,7 @@ const scanTransaction = async (req, res) => {
       return res.status(400).json({ error: 'Please upload an image or PDF statement.' });
     }
 
-    // Call Gemini helper to analyze receipt
+    // Call Groq helper to analyze receipt
     const transactionData = await analyzeReceipt(req.file.buffer, req.file.mimetype);
 
     // Save to Database

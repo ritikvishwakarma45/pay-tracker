@@ -84,7 +84,7 @@ export default function UploadZone({ onScanSuccess }) {
       console.error(err);
       setScanProgress(0);
       setIsScanning(false);
-      setScanError(err.message || 'Scanning failed. Make sure server is running and Gemini API key is configured.');
+      setScanError(err.message || 'Scanning failed. Make sure server is running and Groq API key is configured.');
     }
   };
 
@@ -220,7 +220,7 @@ export default function UploadZone({ onScanSuccess }) {
               ></div>
             </div>
             <p className="text-[12px] text-on-surface-variant text-center mt-1">
-              Google Gemini is reading the receipt & parsing data.
+              Groq AI is reading the receipt & parsing data.
             </p>
           </div>
         </div>
