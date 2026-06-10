@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Check, PlusCircle } from 'lucide-react';
-import { API_URL } from '../config';
+import { apiService } from '../services/apiService';
 
 export default function AddModal({ isOpen, onClose, onSave }) {
   const [amount, setAmount] = useState('');
@@ -57,20 +57,7 @@ export default function AddModal({ isOpen, onClose, onSave }) {
     };
 
     try {
-      const response = await fetch(`${API_URL}/api/transactions`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(transactionData),
-      });
-
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Failed to create transaction.');
-      }
-
-      const newTx = await response.json();
+      const newTx = await apiService.createTransaction(transactionData);
       onSave(newTx);
       onClose();
     } catch (err) {

@@ -1,6 +1,6 @@
 import React, { useState, useRef } from 'react';
 import { Upload, FileText, AlertCircle, Sparkles, X, CheckCircle } from 'lucide-react';
-import { API_URL } from '../config';
+import { apiService } from '../services/apiService';
 
 export default function UploadZone({ onScanSuccess }) {
   const [isDragging, setIsDragging] = useState(false);
@@ -67,24 +67,9 @@ export default function UploadZone({ onScanSuccess }) {
         return prev + 10;
       });
     }, 300);
-
-    const formData = new FormData();
-    formData.append('file', file);
-
     try {
-      const response = await fetch(`${API_URL}/api/transactions/scan`, {
-        method: 'POST',
-        body: formData,
-      });
-
+      const newTransaction = await apiService.scanReceipt(file);
       clearInterval(progressInterval);
-      
-      if (!response.ok) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Server failed to process document.');
-      }
-
-      const newTransaction = await response.json();
       setScanProgress(100);
       
       setTimeout(() => {

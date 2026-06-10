@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { X, Sparkles, Check, Trash2 } from 'lucide-react';
-import { API_URL } from '../config';
+import { apiService } from '../services/apiService';
 
 export default function EditModal({ transaction, isOpen, onClose, onSave }) {
   const [amount, setAmount] = useState('');
@@ -55,27 +55,17 @@ export default function EditModal({ transaction, isOpen, onClose, onSave }) {
     setError(null);
 
     try {
-      const response = await fetch(`${API_URL}/api/transactions/${transaction._id}`, {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: Number(amount),
-          merchantName: merchantName.trim(),
-          category,
-          paymentMode,
-          date: new Date(date).toISOString(),
-          // Clear isAIGenerated flag since user made manual edits
-          isAIGenerated: false, 
-        }),
-      });
+      const updatedData = {
+        amount: Number(amount),
+        merchantName: merchantName.trim(),
+        category,
+        paymentMode,
+        date: new Date(date).toISOString(),
+        // Clear isAIGenerated flag since user made manual edits
+        isAIGenerated: false, 
+      };
 
-      if (!response.ok) {
-        throw new Error('Failed to save changes.');
-      }
-
-      const updated = await response.json();
+      const updated = await apiService.updateTransaction(transaction._id, updatedData);
       onSave(updated);
       onClose();
     } catch (err) {

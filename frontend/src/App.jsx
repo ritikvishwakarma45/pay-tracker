@@ -20,7 +20,7 @@ import AnalyticsCharts from './components/AnalyticsCharts';
 import TransactionTable from './components/TransactionTable';
 import EditModal from './components/EditModal';
 import AddModal from './components/AddModal';
-import { API_URL } from './config';
+import { apiService } from './services/apiService';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('home');
@@ -45,11 +45,8 @@ export default function App() {
   const fetchTransactions = async () => {
     try {
       setLoading(true);
-      const res = await fetch(`${API_URL}/api/transactions`);
-      if (res.ok) {
-        const data = await res.json();
-        setTransactions(data);
-      }
+      const data = await apiService.getTransactions();
+      setTransactions(data);
     } catch (err) {
       console.error('Failed to fetch transactions:', err);
     } finally {
@@ -83,16 +80,11 @@ export default function App() {
   // Delete transaction handler
   const handleDeleteTransaction = async (id) => {
     try {
-      const res = await fetch(`${API_URL}/api/transactions/${id}`, {
-        method: 'DELETE',
-      });
-      if (res.ok) {
-        setTransactions(prev => prev.filter(t => t._id !== id));
-      } else {
-        alert('Failed to delete transaction.');
-      }
+      await apiService.deleteTransaction(id);
+      setTransactions(prev => prev.filter(t => t._id !== id));
     } catch (err) {
       console.error(err);
+      alert(err.message || 'Failed to delete transaction.');
     }
   };
 
