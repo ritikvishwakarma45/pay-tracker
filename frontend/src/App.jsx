@@ -5,6 +5,8 @@ import {
   Scan as ScanIcon, 
   PieChart as PieIcon, 
   History as HistoryIcon, 
+  User as UserIcon,
+  CreditCard as CardIcon,
   Moon, 
   Sun, 
   Bell
@@ -19,6 +21,7 @@ const Home = lazy(() => import('./pages/Home'));
 const Scan = lazy(() => import('./pages/Scan'));
 const Insights = lazy(() => import('./pages/Insights'));
 const History = lazy(() => import('./pages/History'));
+const Profile = lazy(() => import('./pages/Profile'));
 
 // Premium Page loading skeleton/spinner
 const PageLoader = () => (
@@ -37,6 +40,10 @@ function AppRoutes() {
   const [loading, setLoading] = useState(true);
   const [darkMode, setDarkMode] = useState(false);
   
+  // Preferences settings state
+  const [currency, setCurrency] = useState(() => localStorage.getItem('pay_tracker_currency') || 'INR');
+  const [language, setLanguage] = useState(() => localStorage.getItem('pay_tracker_language') || 'English (US)');
+
   // Auth state initialized from localStorage
   const [token, setToken] = useState(localStorage.getItem('pay_tracker_token') || null);
   const [user, setUser] = useState(() => {
@@ -137,11 +144,20 @@ function AppRoutes() {
     setTransactions(prev => prev.map(t => t._id === updatedTx._id ? updatedTx : t));
   };
 
-  const budgetLimit = 40000;
+  const budgetLimit = user?.budgetLimit !== undefined ? user.budgetLimit : 40000;
+
+  const currencyFormats = {
+    INR: { locale: 'en-IN', currency: 'INR' },
+    USD: { locale: 'en-US', currency: 'USD' },
+    EUR: { locale: 'de-DE', currency: 'EUR' },
+    GBP: { locale: 'en-GB', currency: 'GBP' }
+  };
+
   const formatCurrency = (val) => {
-    return new Intl.NumberFormat('en-IN', {
+    const config = currencyFormats[currency] || currencyFormats.INR;
+    return new Intl.NumberFormat(config.locale, {
       style: 'currency',
-      currency: 'INR',
+      currency: config.currency,
       maximumFractionDigits: 0
     }).format(val);
   };
@@ -174,7 +190,7 @@ function AppRoutes() {
                 <div className="flex justify-between items-center px-4 md:px-8 py-3 max-w-7xl mx-auto h-[64px]">
                   
                   {/* Logo & Avatar */}
-                  <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3 cursor-pointer" onClick={() => navigate('/profile')}>
                     <div className="w-10 h-10 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden border border-outline-variant dark:border-slate-700 flex items-center justify-center">
                       <span className="material-symbols-outlined text-slate-600 dark:text-slate-300 font-semibold" style={{ fontVariationSettings: "'FILL' 1" }}>person</span>
                     </div>
@@ -227,6 +243,17 @@ function AppRoutes() {
                       <HistoryIcon className="w-4 h-4" />
                       <span>History</span>
                     </button>
+                    <button 
+                      onClick={() => navigate('/profile')}
+                      className={`font-semibold text-[14px] transition-colors flex items-center gap-1.5 ${
+                        activeTab === '/profile' 
+                          ? 'text-[#006c49] dark:text-[#6ffbbe]' 
+                          : 'text-on-surface-variant dark:text-slate-400 hover:text-primary dark:hover:text-white'
+                      }`}
+                    >
+                      <UserIcon className="w-4 h-4" />
+                      <span>Profile</span>
+                    </button>
                   </nav>
 
                   {/* Action buttons */}
@@ -271,12 +298,18 @@ function AppRoutes() {
                       <Outlet context={{ 
                         transactions, 
                         user, 
+                        setUser,
                         budgetLimit, 
                         formatCurrency, 
                         handleScanSuccess, 
                         setIsAddOpen, 
                         handleEditOpen, 
-                        handleDeleteTransaction 
+                        handleDeleteTransaction,
+                        handleLogout,
+                        currency,
+                        setCurrency,
+                        language,
+                        setLanguage
                       }} />
                     </Suspense>
                   </div>
@@ -300,15 +333,15 @@ function AppRoutes() {
                   </button>
 
                   <button 
-                    onClick={() => navigate('/scan')}
+                    onClick={() => navigate('/history')}
                     className={`flex flex-col items-center justify-center p-2 rounded-xl flex-1 ${
-                      activeTab === '/scan' 
+                      activeTab === '/history' 
                         ? 'text-[#006c49] dark:text-[#6ffbbe] bg-slate-50 dark:bg-slate-800' 
                         : 'text-on-surface-variant dark:text-slate-400'
                     }`}
                   >
-                    <ScanIcon className="w-5 h-5" />
-                    <span className="text-[11px] font-medium mt-1">Scan</span>
+                    <CardIcon className="w-5 h-5" />
+                    <span className="text-[11px] font-medium mt-1">Payments</span>
                   </button>
 
                   <button 
@@ -324,15 +357,15 @@ function AppRoutes() {
                   </button>
 
                   <button 
-                    onClick={() => navigate('/history')}
+                    onClick={() => navigate('/profile')}
                     className={`flex flex-col items-center justify-center p-2 rounded-xl flex-1 ${
-                      activeTab === '/history' 
+                      activeTab === '/profile' 
                         ? 'text-[#006c49] dark:text-[#6ffbbe] bg-slate-50 dark:bg-slate-800' 
                         : 'text-on-surface-variant dark:text-slate-400'
                     }`}
                   >
-                    <HistoryIcon className="w-5 h-5" />
-                    <span className="text-[11px] font-medium mt-1">History</span>
+                    <UserIcon className="w-5 h-5" />
+                    <span className="text-[11px] font-medium mt-1">Profile</span>
                   </button>
                 </div>
               </nav>
@@ -363,6 +396,7 @@ function AppRoutes() {
         <Route path="scan" element={<Scan />} />
         <Route path="insights" element={<Insights />} />
         <Route path="history" element={<History />} />
+        <Route path="profile" element={<Profile />} />
       </Route>
 
       {/* Redirect all unmatched routes back to dashboard root */}

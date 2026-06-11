@@ -139,5 +139,20 @@ export const apiService = {
       throw new Error(errData.error || 'Failed to delete transaction.');
     }
     return res.json();
+  },
+
+  // Update user profile details (name, email, password)
+  updateProfile: async (profileData) => {
+    const res = await fetch(`${API_URL}/api/auth/profile`, {
+      method: 'PUT',
+      headers: getHeaders('application/json'),
+      body: JSON.stringify(profileData)
+    });
+
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error || 'Failed to update profile.');
+    }
+    return res.json();
   }
 };

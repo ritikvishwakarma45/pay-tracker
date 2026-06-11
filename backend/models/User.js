@@ -22,6 +22,10 @@ const userSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Please provide a password'],
     minlength: [8, 'Password must be at least 8 characters']
+  },
+  budgetLimit: {
+    type: Number,
+    default: 40000
   }
 }, {
   timestamps: true

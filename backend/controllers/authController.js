@@ -44,6 +44,7 @@ const signup = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
+        budgetLimit: user.budgetLimit,
         token: generateToken(user._id)
       });
     } else {
@@ -77,6 +78,7 @@ const login = async (req, res) => {
         _id: user._id,
         name: user.name,
         email: user.email,
+        budgetLimit: user.budgetLimit,
         token: generateToken(user._id)
       });
     } else {
@@ -105,8 +107,62 @@ const getMe = async (req, res) => {
   }
 };
 
+// @desc    Update user profile
+// @route   PUT /api/auth/profile
+// @access  Private
+const updateProfile = async (req, res) => {
+  try {
+    const user = await User.findById(req.user);
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    const { name, email, password, budgetLimit } = req.body;
+
+    if (name) user.name = name.trim();
+    
+    if (email && email.toLowerCase().trim() !== user.email) {
+      const emailExists = await User.findOne({ email: email.toLowerCase().trim() });
+      if (emailExists) {
+        return res.status(400).json({ error: 'Email already in use.' });
+      }
+      user.email = email.toLowerCase().trim();
+    }
+
+    if (password) {
+      if (password.length < 8) {
+        return res.status(400).json({ error: 'Password must be at least 8 characters long.' });
+      }
+      user.password = password;
+    }
+
+    if (budgetLimit !== undefined) {
+      const parsedBudget = Number(budgetLimit);
+      if (isNaN(parsedBudget) || parsedBudget < 0) {
+        return res.status(400).json({ error: 'Please enter a valid positive number for budget limit.' });
+      }
+      user.budgetLimit = parsedBudget;
+    }
+
+    await user.save();
+
+    res.status(200).json({
+      _id: user._id,
+      name: user.name,
+      email: user.email,
+      budgetLimit: user.budgetLimit,
+      token: generateToken(user._id)
+    });
+  } catch (error) {
+    console.error('Error updating profile:', error);
+    res.status(500).json({ error: error.message || 'Error updating profile.' });
+  }
+};
+
 module.exports = {
   signup,
   login,
-  getMe
+  getMe,
+  updateProfile
 };
