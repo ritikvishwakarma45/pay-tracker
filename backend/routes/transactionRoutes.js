@@ -8,7 +8,12 @@ const {
   deleteTransaction
 } = require('../controllers/transactionController');
 
+const { protect } = require('../middleware/authMiddleware');
+
 const router = express.Router();
+
+// Apply protect middleware to all routes below
+router.use(protect);
 
 // Multer Config for Memory Storage
 const storage = multer.memoryStorage();

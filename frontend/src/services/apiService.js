@@ -1,9 +1,78 @@
 import { API_URL } from '../config';
 
+// Helper to construct authorization headers
+const getHeaders = (contentType = 'application/json') => {
+  const token = localStorage.getItem('pay_tracker_token');
+  const headers = {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+  if (contentType) {
+    headers['Content-Type'] = contentType;
+  }
+  return headers;
+};
+
 export const apiService = {
-  // Fetch all transactions
+  // --- AUTH SERVICES ---
+  
+  // Login user
+  login: async (email, password) => {
+    const res = await fetch(`${API_URL}/api/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ email, password })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error || 'Failed to log in.');
+    }
+    return res.json();
+  },
+
+  // Register user
+  signup: async (name, email, password) => {
+    const res = await fetch(`${API_URL}/api/auth/signup`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ name, email, password })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error || 'Failed to register account.');
+    }
+    return res.json();
+  },
+
+  // Get current user profile
+  getMe: async () => {
+    const res = await fetch(`${API_URL}/api/auth/me`, {
+      method: 'GET',
+      headers: getHeaders(null)
+    });
+
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error || 'Failed to fetch user profile.');
+    }
+    return res.json();
+  },
+
+
+  // --- TRANSACTION SERVICES ---
+
+  // Fetch all transactions for the authenticated user
   getTransactions: async () => {
-    const res = await fetch(`${API_URL}/api/transactions`);
+    const res = await fetch(`${API_URL}/api/transactions`, {
+      method: 'GET',
+      headers: getHeaders(null)
+    });
     if (!res.ok) {
       throw new Error('Failed to retrieve transactions.');
     }
@@ -14,10 +83,8 @@ export const apiService = {
   createTransaction: async (transactionData) => {
     const res = await fetch(`${API_URL}/api/transactions`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(transactionData),
+      headers: getHeaders('application/json'),
+      body: JSON.stringify(transactionData)
     });
 
     if (!res.ok) {
@@ -34,7 +101,8 @@ export const apiService = {
 
     const res = await fetch(`${API_URL}/api/transactions/scan`, {
       method: 'POST',
-      body: formData,
+      headers: getHeaders(null), // Let browser set Content-Type with boundary for FormData
+      body: formData
     });
 
     if (!res.ok) {
@@ -48,10 +116,8 @@ export const apiService = {
   updateTransaction: async (id, transactionData) => {
     const res = await fetch(`${API_URL}/api/transactions/${id}`, {
       method: 'PUT',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(transactionData),
+      headers: getHeaders('application/json'),
+      body: JSON.stringify(transactionData)
     });
 
     if (!res.ok) {
@@ -65,6 +131,7 @@ export const apiService = {
   deleteTransaction: async (id) => {
     const res = await fetch(`${API_URL}/api/transactions/${id}`, {
       method: 'DELETE',
+      headers: getHeaders(null)
     });
 
     if (!res.ok) {

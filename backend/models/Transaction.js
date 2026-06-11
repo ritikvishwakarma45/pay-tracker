@@ -14,6 +14,11 @@ const transactionSchema = new mongoose.Schema({
     enum: ['UPI', 'Credit Card', 'Debit Card', 'Cash'],
     default: 'UPI'
   },
+  userId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
   isAIGenerated: { type: Boolean, default: true }
 });
 
