@@ -267,10 +267,10 @@ function AppRoutes() {
                     </button>
 
                     {/* Notifications Bell */}
-                    <button className="w-10 h-10 flex items-center justify-center bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full transition-colors relative active:scale-95">
+                    {/* <button className="w-10 h-10 flex items-center justify-center bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full transition-colors relative active:scale-95">
                       <Bell className="w-5 h-5" />
                       <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border border-white"></span>
-                    </button>
+                    </button> */}
 
                     {/* Logout Button */}
                     <button

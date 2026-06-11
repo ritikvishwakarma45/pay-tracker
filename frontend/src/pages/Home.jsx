@@ -7,10 +7,17 @@ export default function Home() {
   const { transactions, user, budgetLimit, formatCurrency } = useOutletContext();
   const navigate = useNavigate();
 
+  const timeGreet = () => {
+    const hour = new Date().getHours();
+    if (hour < 12) return 'Good Morning';
+    if (hour < 18) return 'Good Afternoon';
+    return 'Good Evening';
+  };
+
   return (
     <div className="space-y-6">
       <div>
-        <p className="text-[14px] text-on-surface-variant dark:text-slate-400">Good Morning, {user?.name || 'User'}</p>
+        <p className="text-[14px] text-on-surface-variant dark:text-slate-400">{timeGreet()}, {user?.name || 'User'}</p>
         <h2 className="text-[26px] md:text-[32px] font-bold text-primary dark:text-white mt-0.5">Overview</h2>
       </div>
 
