@@ -1,15 +1,15 @@
 import React, { useState } from 'react';
-import { 
-  ResponsiveContainer, 
-  PieChart, 
-  Pie, 
-  Cell, 
-  AreaChart, 
-  Area, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip 
+import {
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip
 } from 'recharts';
 
 export default function AnalyticsCharts({ transactions }) {
@@ -56,7 +56,7 @@ export default function AnalyticsCharts({ transactions }) {
     // e.g. "2026-06"
     const monthKey = d.toLocaleString('default', { month: 'short', year: '2-digit' });
     const sortKey = d.getFullYear() * 100 + d.getMonth();
-    
+
     if (!acc[monthKey]) {
       acc[monthKey] = { name: monthKey, amount: 0, sortKey };
     }
@@ -66,7 +66,7 @@ export default function AnalyticsCharts({ transactions }) {
 
   // Convert to sorted array
   let trendData = Object.values(monthlyTotals).sort((a, b) => a.sortKey - b.sortKey);
-  
+
   if (timeRange === '6M') {
     trendData = trendData.slice(-6);
   }
@@ -102,7 +102,7 @@ export default function AnalyticsCharts({ transactions }) {
       {/* Category Breakdown Card (Span 5) */}
       <section className="lg:col-span-5 bg-white rounded-xl p-6 border border-outline-variant shadow-sm flex flex-col items-center">
         <h3 className="font-title-lg text-[18px] font-semibold text-primary w-full mb-6">Category Breakdown</h3>
-        
+
         {categoryData.length > 0 ? (
           <>
             <div className="relative w-64 h-64 mb-6 flex items-center justify-center">
@@ -124,7 +124,7 @@ export default function AnalyticsCharts({ transactions }) {
                   <Tooltip content={<CustomPieTooltip />} />
                 </PieChart>
               </ResponsiveContainer>
-              
+
               {/* Centered Total Text */}
               <div className="absolute flex flex-col items-center justify-center text-center pointer-events-none">
                 <span className="font-label-md text-[11px] text-on-surface-variant uppercase tracking-wider">Total spent</span>
@@ -157,23 +157,21 @@ export default function AnalyticsCharts({ transactions }) {
         <div className="flex justify-between items-center mb-6">
           <h3 className="font-title-lg text-[18px] font-semibold text-primary">Expense Trends</h3>
           <div className="flex gap-1 bg-[#F1F5F9] rounded-lg p-1">
-            <button 
+            <button
               onClick={() => setTimeRange('6M')}
-              className={`font-label-md text-[12px] px-3 py-1 rounded-md transition-all ${
-                timeRange === '6M' 
-                  ? 'bg-white shadow-sm text-primary font-semibold' 
+              className={`font-label-md text-[12px] px-3 py-1 rounded-md transition-all ${timeRange === '6M'
+                  ? 'bg-white shadow-sm text-primary font-semibold'
                   : 'text-on-surface-variant hover:text-primary'
-              }`}
+                }`}
             >
               6M
             </button>
-            <button 
+            <button
               onClick={() => setTimeRange('ALL')}
-              className={`font-label-md text-[12px] px-3 py-1 rounded-md transition-all ${
-                timeRange === 'ALL' 
-                  ? 'bg-white shadow-sm text-primary font-semibold' 
+              className={`font-label-md text-[12px] px-3 py-1 rounded-md transition-all ${timeRange === 'ALL'
+                  ? 'bg-white shadow-sm text-primary font-semibold'
                   : 'text-on-surface-variant hover:text-primary'
-              }`}
+                }`}
             >
               All Time
             </button>
@@ -189,31 +187,31 @@ export default function AnalyticsCharts({ transactions }) {
               >
                 <defs>
                   <linearGradient id="trendGradient" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#006c49" stopOpacity={0.2}/>
-                    <stop offset="95%" stopColor="#006c49" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#006c49" stopOpacity={0.2} />
+                    <stop offset="95%" stopColor="#006c49" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E2E8F0" />
-                <XAxis 
-                  dataKey="name" 
+                <XAxis
+                  dataKey="name"
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: '#46474a', fontSize: 11 }}
                 />
-                <YAxis 
+                <YAxis
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: '#46474a', fontSize: 11 }}
                   tickFormatter={(val) => `₹${val}`}
                 />
                 <Tooltip content={<CustomAreaTooltip />} />
-                <Area 
-                  type="monotone" 
-                  dataKey="amount" 
-                  stroke="#006c49" 
+                <Area
+                  type="monotone"
+                  dataKey="amount"
+                  stroke="#006c49"
                   strokeWidth={2.5}
-                  fillOpacity={1} 
-                  fill="url(#trendGradient)" 
+                  fillOpacity={1}
+                  fill="url(#trendGradient)"
                 />
               </AreaChart>
             </ResponsiveContainer>

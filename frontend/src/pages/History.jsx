@@ -23,11 +23,11 @@ export default function History() {
           <span>Add Transaction</span>
         </button>
       </div>
-      
-      <TransactionTable 
-        transactions={transactions} 
-        onEdit={handleEditOpen} 
-        onDelete={handleDeleteTransaction} 
+
+      <TransactionTable
+        transactions={transactions}
+        onEdit={handleEditOpen}
+        onDelete={handleDeleteTransaction}
       />
     </div>
   );
