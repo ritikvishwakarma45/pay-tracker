@@ -1,5 +1,6 @@
 const Transaction = require('../models/Transaction');
-const { analyzeReceipt } = require('../utils/groqHelper');
+const User = require('../models/User');
+const { analyzeReceipt, generateChatResponse } = require('../utils/groqHelper');
 
 // @desc    Scan receipt and save transaction
 // @route   POST /api/transactions/scan
@@ -131,10 +132,69 @@ const deleteTransaction = async (req, res) => {
   }
 };
 
+// @desc    Export transactions as CSV
+// @route   GET /api/transactions/export
+// @access  Private
+const exportTransactions = async (req, res) => {
+  try {
+    const transactions = await Transaction.find({ userId: req.user }).sort({ date: -1 });
+    
+    // Define headers
+    const headers = ['Amount', 'Merchant Name', 'Date', 'Category', 'Payment Mode', 'AI Generated'];
+    const rows = transactions.map(t => [
+      t.amount,
+      `"${t.merchantName.replace(/"/g, '""')}"`,
+      new Date(t.date).toISOString().split('T')[0],
+      t.category,
+      t.paymentMode,
+      t.isAIGenerated ? 'Yes' : 'No'
+    ]);
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
+
+    res.setHeader('Content-Type', 'text/csv');
+    res.setHeader('Content-Disposition', 'attachment; filename=paytracker_transactions.csv');
+    res.status(200).send(csvContent);
+  } catch (error) {
+    console.error('Error exporting transactions:', error);
+    res.status(500).json({ error: 'Failed to export transactions.' });
+  }
+};
+
+// @desc    Chat with AI financial assistant
+// @route   POST /api/transactions/chat
+// @access  Private
+const chatWithAI = async (req, res) => {
+  try {
+    const { message } = req.body;
+    if (!message || !message.trim()) {
+      return res.status(400).json({ error: 'Please enter a message.' });
+    }
+
+    // Fetch user transactions
+    const transactions = await Transaction.find({ userId: req.user }).sort({ date: -1 });
+
+    // Fetch user details for budget limit
+    const user = await User.findById(req.user);
+    const budgetLimit = user && user.budgetLimit !== undefined ? user.budgetLimit : 40000;
+
+    // Generate response from Groq
+    const responseText = await generateChatResponse(message.trim(), transactions, budgetLimit);
+
+    res.status(200).json({ response: responseText });
+  } catch (error) {
+    console.error('Error in AI Chat controller:', error);
+    res.status(500).json({ error: error.message || 'Failed to communicate with AI Assistant.' });
+  }
+};
+
 module.exports = {
   scanTransaction,
   createTransaction,
   getTransactions,
   updateTransaction,
-  deleteTransaction
+  deleteTransaction,
+  exportTransactions,
+  chatWithAI
 };
+

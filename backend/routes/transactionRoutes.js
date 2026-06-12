@@ -5,7 +5,9 @@ const {
   createTransaction,
   getTransactions,
   updateTransaction,
-  deleteTransaction
+  deleteTransaction,
+  exportTransactions,
+  chatWithAI
 } = require('../controllers/transactionController');
 
 const { protect } = require('../middleware/authMiddleware');
@@ -23,6 +25,8 @@ const upload = multer({
 });
 
 // Route mappings
+router.get('/export', exportTransactions);
+router.post('/chat', chatWithAI);
 router.post('/scan', upload.single('file'), scanTransaction);
 router.post('/', createTransaction);
 router.get('/', getTransactions);

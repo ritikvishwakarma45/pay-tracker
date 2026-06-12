@@ -9,10 +9,14 @@ import {
   CreditCard as CardIcon,
   Moon, 
   Sun, 
-  Bell
+  Bell,
+  AlertTriangle,
+  CheckCircle2,
+  Info
 } from 'lucide-react';
 import EditModal from './components/EditModal';
 import AddModal from './components/AddModal';
+import AIChatBubble from './components/AIChatBubble';
 import AuthPage from './components/AuthPage';
 import { apiService } from './services/apiService';
 
@@ -58,9 +62,99 @@ function AppRoutes() {
   // Add modal state
   const [isAddOpen, setIsAddOpen] = useState(false);
 
+  // Notifications state
+  const [notifications, setNotifications] = useState(() => {
+    const saved = localStorage.getItem('pay_tracker_notifications');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
+
+  // Save notifications to localStorage when changed
+  useEffect(() => {
+    localStorage.setItem('pay_tracker_notifications', JSON.stringify(notifications));
+  }, [notifications]);
+
+  // Check budget breach dynamically
+  useEffect(() => {
+    if (!user || transactions.length === 0) return;
+    
+    const now = new Date();
+    const currentYear = now.getFullYear();
+    const currentMonth = now.getMonth();
+
+    const currentMonthTransactions = transactions.filter(t => {
+      const d = new Date(t.date);
+      return d.getFullYear() === currentYear && d.getMonth() === currentMonth;
+    });
+
+    const totalSpent = currentMonthTransactions.reduce((acc, curr) => acc + curr.amount, 0);
+    const limit = user.budgetLimit !== undefined ? user.budgetLimit : 40000;
+    const pct = (totalSpent / limit) * 100;
+
+    setNotifications(prev => {
+      // Remove any existing budget notifications so we don't duplicate them
+      const filtered = prev.filter(n => !n.id.startsWith('budget-'));
+      
+      const newBudgetNotifs = [];
+      if (pct >= 100) {
+        newBudgetNotifs.push({
+          id: `budget-100-${currentYear}-${currentMonth}`,
+          title: 'Budget Limit Exceeded! ⚠️',
+          message: `You have spent ₹${totalSpent.toLocaleString('en-IN')}, exceeding your monthly limit of ₹${limit.toLocaleString('en-IN')}.`,
+          type: 'danger',
+          isRead: false,
+          createdAt: new Date().toISOString()
+        });
+      } else if (pct >= 80) {
+        newBudgetNotifs.push({
+          id: `budget-80-${currentYear}-${currentMonth}`,
+          title: 'Budget Warning (80% Reached) 🔔',
+          message: `You have spent ₹${totalSpent.toLocaleString('en-IN')} (${Math.round(pct)}%) of your monthly budget of ₹${limit.toLocaleString('en-IN')}.`,
+          type: 'warning',
+          isRead: false,
+          createdAt: new Date().toISOString()
+        });
+      }
+
+      // Check if we already have this specific budget notification in the filtered list
+      // (avoid overriding isRead status if already present)
+      const finalNotifs = [...filtered];
+      newBudgetNotifs.forEach(bn => {
+        const existing = prev.find(n => n.id === bn.id);
+        if (existing) {
+          finalNotifs.unshift(existing);
+        } else {
+          finalNotifs.unshift(bn);
+        }
+      });
+
+      return finalNotifs;
+    });
+  }, [transactions, user]);
+
+  const markAllAsRead = () => {
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+  };
+
+  const clearNotifications = () => {
+    setNotifications([]);
+  };
+
   // Add manual transaction handler
   const handleAddSave = (newTx) => {
     setTransactions(prev => [newTx, ...prev]);
+    
+    // Add manual success notification
+    const addNotif = {
+      id: `add-${newTx._id || Date.now()}`,
+      title: 'Transaction Added 📝',
+      message: `Added ₹${newTx.amount} to ${newTx.merchantName} manually.`,
+      type: 'success',
+      isRead: false,
+      createdAt: new Date().toISOString()
+    };
+    setNotifications(prev => [addNotif, ...prev]);
+
     navigate('/history');
   };
 
@@ -101,6 +195,7 @@ function AppRoutes() {
     setToken(null);
     setUser(null);
     setTransactions([]);
+    setNotifications([]);
     navigate('/login');
   };
 
@@ -117,6 +212,18 @@ function AppRoutes() {
   // Add newly scanned transaction
   const handleScanSuccess = (newTx) => {
     setTransactions(prev => [newTx, ...prev]);
+    
+    // Add scan success notification
+    const scanNotif = {
+      id: `scan-${newTx._id || Date.now()}`,
+      title: 'Scan Success ✨',
+      message: `Scanned ₹${newTx.amount} from ${newTx.merchantName} successfully.`,
+      type: 'success',
+      isRead: false,
+      createdAt: new Date().toISOString()
+    };
+    setNotifications(prev => [scanNotif, ...prev]);
+
     setTimeout(() => {
       navigate('/history');
     }, 1500);
@@ -267,10 +374,75 @@ function AppRoutes() {
                     </button>
 
                     {/* Notifications Bell */}
-                    {/* <button className="w-10 h-10 flex items-center justify-center bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full transition-colors relative active:scale-95">
-                      <Bell className="w-5 h-5" />
-                      <span className="absolute top-2 right-2 w-2 h-2 bg-error rounded-full border border-white"></span>
-                    </button> */}
+                    <div className="relative">
+                      <button
+                        onClick={() => setIsNotifOpen(!isNotifOpen)}
+                        className="w-10 h-10 flex items-center justify-center bg-slate-50 dark:bg-slate-800 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 rounded-full transition-colors relative active:scale-95"
+                      >
+                        <Bell className="w-5 h-5" />
+                        {notifications.some(n => !n.isRead) && (
+                          <span className="absolute top-2.5 right-2.5 w-2.5 h-2.5 bg-red-500 rounded-full border border-white dark:border-slate-900 animate-pulse"></span>
+                        )}
+                      </button>
+
+                      {/* Dropdown Popover */}
+                      {isNotifOpen && (
+                        <>
+                          <div className="fixed inset-0 z-40" onClick={() => setIsNotifOpen(false)}></div>
+                          <div className="absolute right-0 mt-2 w-80 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl shadow-xl z-50 overflow-hidden animate-fadeIn max-h-[400px] flex flex-col">
+                            <div className="flex justify-between items-center px-4 py-3 border-b border-slate-100 dark:border-slate-800 bg-slate-50 dark:bg-slate-800/40">
+                              <span className="font-bold text-[14px] text-primary dark:text-white">Notifications</span>
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={markAllAsRead}
+                                  className="text-[11px] font-bold text-[#006c49] dark:text-[#6ffbbe] hover:underline"
+                                >
+                                  Read All
+                                </button>
+                                <button
+                                  onClick={clearNotifications}
+                                  className="text-[11px] font-bold text-red-500 hover:underline"
+                                >
+                                  Clear
+                                </button>
+                              </div>
+                            </div>
+                            
+                            <div className="overflow-y-auto flex-1 divide-y divide-slate-100 dark:divide-slate-800/50">
+                              {notifications.length > 0 ? (
+                                notifications.map(n => (
+                                  <div
+                                    key={n.id}
+                                    className={`p-3.5 flex gap-3 transition-colors ${
+                                      n.isRead ? 'opacity-75' : 'bg-slate-50/50 dark:bg-slate-800/20 font-medium'
+                                    }`}
+                                  >
+                                    <div className="shrink-0 mt-0.5">
+                                      {n.type === 'danger' && <AlertTriangle className="w-4.5 h-4.5 text-red-500" />}
+                                      {n.type === 'warning' && <AlertTriangle className="w-4.5 h-4.5 text-amber-500" />}
+                                      {n.type === 'success' && <CheckCircle2 className="w-4.5 h-4.5 text-emerald-500" />}
+                                      {n.type === 'info' && <Info className="w-4.5 h-4.5 text-blue-500" />}
+                                    </div>
+                                    <div className="flex-1 min-w-0">
+                                      <p className="text-[12.5px] font-bold text-primary dark:text-white truncate">{n.title}</p>
+                                      <p className="text-[11.5px] text-slate-500 dark:text-slate-400 mt-0.5 leading-normal break-words">{n.message}</p>
+                                      <p className="text-[9.5px] text-slate-400 mt-1">
+                                        {new Date(n.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                      </p>
+                                    </div>
+                                  </div>
+                                ))
+                              ) : (
+                                <div className="p-8 text-center text-slate-400 dark:text-slate-500 text-[13px] flex flex-col items-center justify-center gap-2">
+                                  <Bell className="w-8 h-8 opacity-40 animate-bounce" />
+                                  <span>No notifications yet.</span>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </>
+                      )}
+                    </div>
 
                     {/* Logout Button */}
                     <button
@@ -387,6 +559,9 @@ function AppRoutes() {
                 onClose={() => setIsAddOpen(false)}
                 onSave={handleAddSave}
               />
+
+              {/* Floating AI Chatbot Assistant */}
+              <AIChatBubble />
             </div>
           )
         }

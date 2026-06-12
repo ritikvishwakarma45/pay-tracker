@@ -163,4 +163,73 @@ const analyzeReceipt = async (fileBuffer, mimeType) => {
   return parseGroqJSON(responseText);
 };
 
-module.exports = { analyzeReceipt };
+const generateChatResponse = async (userMessage, transactions, budgetLimit) => {
+  const apiKey = process.env.GROQ_API_KEY;
+  const baseUrl = process.env.GROQ_BASE_URL || 'https://api.groq.com/openai/v1/chat/completions';
+
+  if (!apiKey) {
+    throw new Error('GROQ_API_KEY is not configured on the server');
+  }
+
+  // Summarize transactions to minimize tokens
+  const transactionSummary = transactions.map(t => ({
+    amount: t.amount,
+    merchant: t.merchantName,
+    date: new Date(t.date).toISOString().split('T')[0],
+    category: t.category,
+    paymentMode: t.paymentMode
+  }));
+
+  const systemPrompt = `You are PayTracker AI, a smart personal finance assistant.
+You help users analyze their spending habits, track their budget, and provide tips to save money.
+
+Here is the user's monthly budget limit: ₹${budgetLimit}
+Here is the user's transaction history (newest first):
+${JSON.stringify(transactionSummary, null, 2)}
+
+Instructions:
+1. Answer the user's question based on their transaction history and budget limit.
+2. Be polite, concise, and helpful.
+3. If they ask about total spent, average spent, or categories, calculate the numbers accurately.
+4. Keep the tone friendly and encouraging. Recommend savings where possible.`;
+
+  const payload = {
+    model: 'llama-3.3-70b-versatile',
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userMessage }
+    ],
+    temperature: 0.5,
+    max_tokens: 1024
+  };
+
+  let response;
+  try {
+    response = await fetch(baseUrl, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${apiKey}`
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch (err) {
+    console.error('Failed to contact Groq API:', err);
+    throw new Error('Could not connect to Groq AI.');
+  }
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error('Groq Chat API Error:', errorText);
+    throw new Error('Failed to get response from Groq AI.');
+  }
+
+  const data = await response.json();
+  if (!data.choices || data.choices.length === 0 || !data.choices[0].message) {
+    throw new Error('Groq AI returned an empty chat response.');
+  }
+
+  return data.choices[0].message.content;
+};
+
+module.exports = { analyzeReceipt, generateChatResponse };

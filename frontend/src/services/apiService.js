@@ -128,6 +128,7 @@ export const apiService = {
   },
 
   // Delete a transaction
+  // Delete a transaction
   deleteTransaction: async (id) => {
     const res = await fetch(`${API_URL}/api/transactions/${id}`, {
       method: 'DELETE',
@@ -137,6 +138,33 @@ export const apiService = {
     if (!res.ok) {
       const errData = await res.json();
       throw new Error(errData.error || 'Failed to delete transaction.');
+    }
+    return res.json();
+  },
+
+  // Export transactions to CSV
+  exportTransactions: async () => {
+    const res = await fetch(`${API_URL}/api/transactions/export`, {
+      method: 'GET',
+      headers: getHeaders(null)
+    });
+    if (!res.ok) {
+      throw new Error('Failed to export transactions.');
+    }
+    return res.blob();
+  },
+
+  // Chat with AI assistant
+  chatWithAI: async (message) => {
+    const res = await fetch(`${API_URL}/api/transactions/chat`, {
+      method: 'POST',
+      headers: getHeaders('application/json'),
+      body: JSON.stringify({ message })
+    });
+
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error || 'Failed to get AI response.');
     }
     return res.json();
   },
