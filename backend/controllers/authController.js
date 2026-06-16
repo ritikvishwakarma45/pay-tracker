@@ -45,6 +45,7 @@ const signup = async (req, res) => {
         name: user.name,
         email: user.email,
         budgetLimit: user.budgetLimit,
+        categoryBudgets: user.categoryBudgets,
         token: generateToken(user._id)
       });
     } else {
@@ -79,6 +80,7 @@ const login = async (req, res) => {
         name: user.name,
         email: user.email,
         budgetLimit: user.budgetLimit,
+        categoryBudgets: user.categoryBudgets,
         token: generateToken(user._id)
       });
     } else {
@@ -145,6 +147,10 @@ const updateProfile = async (req, res) => {
       user.budgetLimit = parsedBudget;
     }
 
+    if (req.body.categoryBudgets !== undefined) {
+      user.categoryBudgets = req.body.categoryBudgets;
+    }
+
     await user.save();
 
     res.status(200).json({
@@ -152,6 +158,7 @@ const updateProfile = async (req, res) => {
       name: user.name,
       email: user.email,
       budgetLimit: user.budgetLimit,
+      categoryBudgets: user.categoryBudgets,
       token: generateToken(user._id)
     });
   } catch (error) {

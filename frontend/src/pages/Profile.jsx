@@ -46,6 +46,16 @@ export default function Profile() {
   // Budget Limit Form State
   const [editBudget, setEditBudget] = useState(user?.budgetLimit || 40000);
   const [budgetStatus, setBudgetStatus] = useState({ type: '', message: '' });
+  const [editCategoryBudgets, setEditCategoryBudgets] = useState(() => {
+    const defaultBudgets = { Food: 0, Bills: 0, Education: 0, Entertainment: 0, Shopping: 0, Others: 0 };
+    if (user?.categoryBudgets) {
+      const uBudgets = user.categoryBudgets instanceof Map 
+        ? Object.fromEntries(user.categoryBudgets) 
+        : user.categoryBudgets;
+      return { ...defaultBudgets, ...uBudgets };
+    }
+    return defaultBudgets;
+  });
 
   // Password Form State
   const [currentPassword, setCurrentPassword] = useState('');
@@ -69,6 +79,12 @@ export default function Profile() {
       setEditName(user.name);
       setEditEmail(user.email);
       setEditBudget(user.budgetLimit || 40000);
+      
+      const defaultBudgets = { Food: 0, Bills: 0, Education: 0, Entertainment: 0, Shopping: 0, Others: 0 };
+      const uBudgets = user.categoryBudgets instanceof Map 
+        ? Object.fromEntries(user.categoryBudgets) 
+        : user.categoryBudgets || {};
+      setEditCategoryBudgets({ ...defaultBudgets, ...uBudgets });
     }
   }, [user]);
 
@@ -108,7 +124,10 @@ export default function Profile() {
     }
     try {
       setBudgetStatus({ type: 'info', message: 'Updating budget limit...' });
-      const updated = await apiService.updateProfile({ budgetLimit: parsed });
+      const updated = await apiService.updateProfile({ 
+        budgetLimit: parsed,
+        categoryBudgets: editCategoryBudgets
+      });
       
       // Update Context
       setUser(updated);
@@ -396,15 +415,49 @@ export default function Profile() {
                   {budgetStatus.message}
                 </div>
               )}
-              <div className="space-y-1">
-                <label className="text-[12px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Monthly Budget Limit (₹)</label>
-                <input 
-                  type="number" 
-                  value={editBudget}
-                  onChange={(e) => setEditBudget(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-[10px] text-[14px] focus:outline-none focus:border-[#006c49] dark:text-white"
-                  placeholder="e.g. 40000"
-                />
+              <div className="space-y-3 pr-1 max-h-[350px] overflow-y-auto">
+                <div className="space-y-1">
+                  <label className="text-[12px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total Monthly Budget (₹)</label>
+                  <input 
+                    type="number" 
+                    value={editBudget}
+                    onChange={(e) => setEditBudget(e.target.value)}
+                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-[10px] text-[14px] focus:outline-none focus:border-[#006c49] dark:text-white"
+                    placeholder="e.g. 40000"
+                  />
+                </div>
+                
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800">
+                  <p className="text-[13px] font-bold text-primary dark:text-white mb-2">Category Budgets (Optional)</p>
+                  <p className="text-[11px] text-on-surface-variant dark:text-slate-400 mb-3">Set specific limits for individual categories (keep 0 for unlimited).</p>
+                  
+                  <div className="grid grid-cols-2 gap-3">
+                    {['Food', 'Bills', 'Education', 'Entertainment', 'Shopping', 'Others'].map(cat => (
+                      <div key={cat} className="space-y-1">
+                        <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 flex items-center gap-1">
+                          <span className="material-symbols-outlined text-[14px]">
+                            {cat === 'Food' ? 'local_cafe' :
+                             cat === 'Bills' ? 'receipt' :
+                             cat === 'Education' ? 'school' :
+                             cat === 'Entertainment' ? 'movie' :
+                             cat === 'Shopping' ? 'shopping_bag' : 'help_outline'}
+                          </span>
+                          {cat}
+                        </label>
+                        <input 
+                          type="number" 
+                          value={editCategoryBudgets[cat] || ''}
+                          onChange={(e) => {
+                            const val = e.target.value === '' ? 0 : Number(e.target.value);
+                            setEditCategoryBudgets(prev => ({ ...prev, [cat]: val }));
+                          }}
+                          className="w-full px-2.5 py-1.5 bg-slate-50 dark:bg-slate-800/70 border border-slate-200 dark:border-slate-700 rounded-[8px] text-[13px] focus:outline-none focus:border-[#006c49] dark:text-white"
+                          placeholder="No limit"
+                        />
+                      </div>
+                    ))}
+                  </div>
+                </div>
               </div>
               <div className="pt-2 flex gap-3">
                 <button 

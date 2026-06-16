@@ -2,6 +2,7 @@ const Transaction = require('../models/Transaction');
 const User = require('../models/User');
 const { analyzeReceipt, generateChatResponse } = require('../utils/groqHelper');
 
+
 // @desc    Scan receipt and save transaction
 // @route   POST /api/transactions/scan
 // @access  Private
@@ -188,6 +189,43 @@ const chatWithAI = async (req, res) => {
   }
 };
 
+const scanBulkTransactions = async (req, res) => {
+  try {
+    if (!req.files || req.files.length === 0) {
+      return res.status(400).json({ error: 'Please upload at least one image or PDF statement.' });
+    }
+
+    const results = [];
+    for (const file of req.files) {
+      try {
+        const transactionData = await analyzeReceipt(file.buffer, file.mimetype);
+        const newTransaction = new Transaction({
+          ...transactionData,
+          userId: req.user
+        });
+        const savedTransaction = await newTransaction.save();
+        results.push({
+          success: true,
+          fileName: file.originalname,
+          transaction: savedTransaction
+        });
+      } catch (err) {
+        console.error(`Failed to process bulk scan for file ${file.originalname}:`, err);
+        results.push({
+          success: false,
+          fileName: file.originalname,
+          error: err.message || 'Parsing failed.'
+        });
+      }
+    }
+
+    res.status(200).json(results);
+  } catch (error) {
+    console.error('Error in bulk scanning controller:', error);
+    res.status(500).json({ error: error.message || 'Error occurred during bulk scanning.' });
+  }
+};
+
 module.exports = {
   scanTransaction,
   createTransaction,
@@ -195,6 +233,7 @@ module.exports = {
   updateTransaction,
   deleteTransaction,
   exportTransactions,
-  chatWithAI
+  chatWithAI,
+  scanBulkTransactions
 };
 

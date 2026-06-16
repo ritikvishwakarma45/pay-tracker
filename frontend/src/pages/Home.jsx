@@ -4,7 +4,7 @@ import { Sparkles, ArrowRight } from 'lucide-react';
 import DashboardStats from '../components/DashboardStats';
 
 export default function Home() {
-  const { transactions, user, budgetLimit, formatCurrency } = useOutletContext();
+  const { transactions, user, budgetLimit, categoryBudgets, formatCurrency, handleScanSuccess } = useOutletContext();
   const navigate = useNavigate();
 
   const timeGreet = () => {
@@ -22,7 +22,7 @@ export default function Home() {
       </div>
 
       {/* Dashboard Stats row */}
-      <DashboardStats transactions={transactions} budgetLimit={budgetLimit} />
+      <DashboardStats transactions={transactions} budgetLimit={budgetLimit} categoryBudgets={categoryBudgets} />
 
       {/* Bento layout (Recent Activity summary & Quick Scan Card) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">

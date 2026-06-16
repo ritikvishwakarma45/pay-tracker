@@ -182,5 +182,25 @@ export const apiService = {
       throw new Error(errData.error || 'Failed to update profile.');
     }
     return res.json();
+  },
+
+  // Scan multiple receipt files in bulk
+  scanReceiptBulk: async (files) => {
+    const formData = new FormData();
+    for (const file of files) {
+      formData.append('files', file);
+    }
+
+    const res = await fetch(`${API_URL}/api/transactions/scan-bulk`, {
+      method: 'POST',
+      headers: getHeaders(null),
+      body: formData
+    });
+
+    if (!res.ok) {
+      const errData = await res.json();
+      throw new Error(errData.error || 'Failed to scan receipts in bulk.');
+    }
+    return res.json();
   }
 };

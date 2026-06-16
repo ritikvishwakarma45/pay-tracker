@@ -1,13 +1,13 @@
 import React, { useState, useRef } from 'react';
-import { Upload, FileText, AlertCircle, Sparkles, X, CheckCircle } from 'lucide-react';
+import { Upload, FileText, AlertCircle, Sparkles, X, CheckCircle, Loader2 } from 'lucide-react';
 import { apiService } from '../services/apiService';
 
 export default function UploadZone({ onScanSuccess }) {
   const [isDragging, setIsDragging] = useState(false);
   const [isScanning, setIsScanning] = useState(false);
-  const [scanProgress, setScanProgress] = useState(0);
   const [scanError, setScanError] = useState(null);
   const [successMsg, setSuccessMsg] = useState(null);
+  const [queue, setQueue] = useState([]);
   const fileInputRef = useRef(null);
 
   const triggerFileInput = () => {
@@ -26,70 +26,127 @@ export default function UploadZone({ onScanSuccess }) {
   const handleDrop = (e) => {
     e.preventDefault();
     setIsDragging(false);
-    const files = e.dataTransfer.files;
+    const files = Array.from(e.dataTransfer.files);
     if (files.length > 0) {
-      processFile(files[0]);
+      processFiles(files);
     }
   };
 
   const handleFileChange = (e) => {
-    const files = e.target.files;
+    const files = Array.from(e.target.files);
     if (files.length > 0) {
-      processFile(files[0]);
+      processFiles(files);
     }
   };
 
-  const processFile = async (file) => {
-    // Validate file type
+  const clearQueueItem = (id) => {
+    setQueue(prev => prev.filter(item => item.id !== id));
+  };
+
+  const processFiles = async (files) => {
+    // Validate file types and sizes
     const validTypes = ['image/jpeg', 'image/png', 'application/pdf'];
-    if (!validTypes.includes(file.type)) {
-      setScanError('Unsupported file type. Please upload a JPG, PNG, or PDF file.');
-      return;
+    const validFiles = [];
+    const errors = [];
+
+    files.forEach(file => {
+      if (!validTypes.includes(file.type)) {
+        errors.push(`${file.name}: Unsupported file type.`);
+      } else if (file.size > 5 * 1024 * 1024) {
+        errors.push(`${file.name}: Too large (max 5MB).`);
+      } else {
+        validFiles.push(file);
+      }
+    });
+
+    if (errors.length > 0) {
+      setScanError(errors.join(' '));
+    } else {
+      setScanError(null);
     }
 
-    // Validate file size (max 5MB)
-    if (file.size > 5 * 1024 * 1024) {
-      setScanError('File is too large. Maximum size allowed is 5MB.');
-      return;
-    }
+    if (validFiles.length === 0) return;
 
-    setScanError(null);
+    // Add to scanning queue
+    const newItems = validFiles.map((file, idx) => ({
+      id: `${Date.now()}-${idx}`,
+      name: file.name,
+      size: (file.size / 1024 / 1024).toFixed(2) + ' MB',
+      status: 'scanning',
+      progress: 15,
+      error: null,
+      amount: null,
+      merchant: null
+    }));
+
+    setQueue(prev => [...newItems, ...prev]);
     setIsScanning(true);
-    setScanProgress(15);
 
-    // Simulate progressive scanning steps for UI premium feel
+    // Simulate progress increments for premium feel
     const progressInterval = setInterval(() => {
-      setScanProgress((prev) => {
-        if (prev >= 85) {
-          clearInterval(progressInterval);
-          return 85;
-        }
-        return prev + 10;
-      });
+      setQueue(prev =>
+        prev.map(item => {
+          if (item.status === 'scanning' && item.progress < 85) {
+            return { ...item, progress: item.progress + Math.floor(Math.random() * 10) + 5 };
+          }
+          return item;
+        })
+      );
     }, 300);
-    try {
-      const newTransaction = await apiService.scanReceipt(file);
-      clearInterval(progressInterval);
-      setScanProgress(100);
-      
-      setTimeout(() => {
-        setIsScanning(false);
-        setSuccessMsg(`Successfully scanned transaction of ₹${newTransaction.amount} from ${newTransaction.merchantName}!`);
-        onScanSuccess(newTransaction);
-        setTimeout(() => setSuccessMsg(null), 4000);
-      }, 500);
 
+    try {
+      const results = await apiService.scanReceiptBulk(validFiles);
+      clearInterval(progressInterval);
+
+      setQueue(prev =>
+        prev.map(item => {
+          const resObj = results.find(r => r.fileName === item.name);
+          if (resObj) {
+            if (resObj.success) {
+              onScanSuccess(resObj.transaction);
+              return {
+                ...item,
+                status: 'success',
+                progress: 100,
+                amount: resObj.transaction.amount,
+                merchant: resObj.transaction.merchantName
+              };
+            } else {
+              return {
+                ...item,
+                status: 'error',
+                progress: 0,
+                error: resObj.error || 'Parsing failed.'
+              };
+            }
+          }
+          return item;
+        })
+      );
+
+      const successCount = results.filter(r => r.success).length;
+      if (successCount > 0) {
+        setSuccessMsg(`Successfully processed ${successCount} statement(s) / receipt(s)!`);
+        setTimeout(() => setSuccessMsg(null), 4000);
+      }
     } catch (err) {
       clearInterval(progressInterval);
       console.error(err);
-      setScanProgress(0);
+      setQueue(prev =>
+        prev.map(item =>
+          item.status === 'scanning'
+            ? { ...item, status: 'error', progress: 0, error: err.message || 'Scanning failed.' }
+            : item
+        )
+      );
+      setScanError(err.message || 'Bulk scanning failed. Ensure backend and Groq configurations are active.');
+    } finally {
       setIsScanning(false);
-      setScanError(err.message || 'Scanning failed. Make sure server is running and Groq API key is configured.');
     }
   };
 
   return (
-    <div className="w-full">
+    <div className="w-full space-y-6">
       {/* Upload Zone Card */}
       <div
         onDragOver={handleDragOver}
@@ -99,7 +156,7 @@ export default function UploadZone({ onScanSuccess }) {
         className={`border-2 border-dashed rounded-[12px] p-8 text-center cursor-pointer transition-all duration-300 relative group overflow-hidden ${
           isDragging
             ? 'border-accent bg-accent/5'
-            : 'border-outline-variant hover:border-accent hover:bg-surface'
+            : 'border-outline-variant hover:border-accent hover:bg-surface dark:hover:bg-slate-800/50'
         }`}
       >
         <input
@@ -107,24 +164,29 @@ export default function UploadZone({ onScanSuccess }) {
           ref={fileInputRef}
           onChange={handleFileChange}
           accept=".jpg,.jpeg,.png,.pdf"
+          multiple
           className="hidden"
         />
 
         <div className="absolute top-0 right-0 w-32 h-32 bg-accent/5 rounded-full blur-2xl -mr-6 -mt-6 group-hover:bg-accent/10 transition-all pointer-events-none"></div>
 
         <div className="flex flex-col items-center justify-center space-y-4">
-          <div className="w-16 h-16 rounded-full bg-surface group-hover:bg-white flex items-center justify-center text-primary border border-outline-variant transition-colors group-hover:shadow-sm">
-            <Upload className="w-6 h-6 text-accent group-hover:scale-110 transition-transform duration-200" />
+          <div className="w-16 h-16 rounded-full bg-surface dark:bg-slate-800 group-hover:bg-white dark:group-hover:bg-slate-700 flex items-center justify-center text-primary dark:text-white border border-outline-variant transition-colors group-hover:shadow-sm">
+            {isScanning ? (
+              <Loader2 className="w-6 h-6 text-accent animate-spin" />
+            ) : (
+              <Upload className="w-6 h-6 text-accent group-hover:scale-110 transition-transform duration-200" />
+            )}
           </div>
           <div>
-            <p className="font-title-lg text-primary text-[18px] font-semibold">
-              Scan Payment Screenshot
+            <p className="font-title-lg text-primary dark:text-white text-[18px] font-semibold">
+              Scan Receipts in Bulk
             </p>
-            <p className="font-body-md text-on-surface-variant text-[14px] mt-1">
-              Drag & drop or click to upload UPI screenshot or PDF statement
+            <p className="font-body-md text-on-surface-variant dark:text-slate-400 text-[14px] mt-1">
+              Drag & drop or click to upload one or more UPI screenshots or PDF statements
             </p>
-            <p className="font-label-md text-on-surface-variant text-[11px] text-gray-400 mt-2">
-              Supports JPEG, PNG, PDF up to 5MB
+            <p className="font-label-md text-on-surface-variant dark:text-slate-500 text-[11px] mt-2">
+              Supports JPG, PNG, PDF up to 5MB per file (max 10 files)
             </p>
           </div>
         </div>
@@ -132,10 +194,10 @@ export default function UploadZone({ onScanSuccess }) {
 
       {/* Notifications */}
       {scanError && (
-        <div className="mt-4 p-4 bg-error-container border border-red-200 rounded-[12px] flex items-start space-x-3 text-error">
+        <div className="p-4 bg-error-container border border-red-200 dark:border-red-900 rounded-[12px] flex items-start space-x-3 text-error dark:text-red-400">
           <AlertCircle className="w-5 h-5 mt-0.5 flex-shrink-0" />
           <div className="flex-1">
-            <p className="font-bold text-[14px]">Scan Error</p>
+            <p className="font-bold text-[14px]">Scan Alert</p>
             <p className="text-[13px] mt-0.5">{scanError}</p>
           </div>
           <button onClick={() => setScanError(null)} className="text-error hover:opacity-75">
@@ -145,11 +207,11 @@ export default function UploadZone({ onScanSuccess }) {
       )}
 
       {successMsg && (
-        <div className="mt-4 p-4 bg-[#D1FAE5] border border-green-200 rounded-[12px] flex items-start space-x-3 text-secondary">
+        <div className="p-4 bg-[#D1FAE5] border border-green-200 dark:border-emerald-900 dark:bg-emerald-950/30 rounded-[12px] flex items-start space-x-3 text-secondary dark:text-emerald-400">
           <CheckCircle className="w-5 h-5 mt-0.5 flex-shrink-0 text-[#10B981]" />
           <div className="flex-1">
-            <p className="font-bold text-[14px] text-[#006c49]">Scan Success</p>
-            <p className="text-[13px] mt-0.5 text-[#006c49] font-medium">{successMsg}</p>
+            <p className="font-bold text-[14px] text-[#006c49] dark:text-emerald-400">Scan Success</p>
+            <p className="text-[13px] mt-0.5 text-[#006c49] dark:text-emerald-400 font-medium">{successMsg}</p>
           </div>
           <button onClick={() => setSuccessMsg(null)} className="text-[#006c49] hover:opacity-75">
             <X className="w-4 h-4" />
@@ -157,71 +219,87 @@ export default function UploadZone({ onScanSuccess }) {
         </div>
       )}
 
-      {/* Fullscreen Laser Scanning Overlay */}
-      {isScanning && (
-        <div className="fixed inset-0 bg-primary/90 backdrop-blur-md z-50 flex flex-col items-center justify-center select-none animate-fadeIn">
-          {/* Top Info */}
-          <div className="absolute top-6 left-6 right-6 flex justify-between items-center text-white">
+      {/* Modern Scan Queue Dashboard */}
+      {queue.length > 0 && (
+        <div className="bg-white dark:bg-slate-900 rounded-[12px] border border-outline-variant dark:border-slate-800 overflow-hidden transition-colors">
+          <div className="px-5 py-4 border-b border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-800/40 flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <Sparkles className="w-5 h-5 text-accent animate-pulse" />
-              <span className="font-semibold text-lg">PayTracker AI Scanner</span>
+              <Sparkles className="w-4 h-4 text-accent animate-pulse" />
+              <span className="font-bold text-[15px] text-primary dark:text-white">AI Scanner Queue ({queue.length})</span>
             </div>
-            <button
-              onClick={() => {
-                setIsScanning(false);
-                setScanProgress(0);
-              }}
-              className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center text-white transition-colors"
+            <button 
+              onClick={() => setQueue([])} 
+              className="text-[12px] font-bold text-slate-500 hover:text-red-500 transition-colors"
             >
-              <X className="w-5 h-5" />
+              Clear All
             </button>
           </div>
 
-          {/* Viewfinder Window */}
-          <div className="relative w-[85%] max-w-[380px] aspect-[3/4] rounded-2xl overflow-hidden border border-white/10 shadow-2xl">
-            {/* Viewfinder Corners */}
-            <div className="viewfinder-corner corner-tl"></div>
-            <div className="viewfinder-corner corner-tr"></div>
-            <div className="viewfinder-corner corner-bl"></div>
-            <div className="viewfinder-corner corner-br"></div>
+          <div className="divide-y divide-slate-100 dark:divide-slate-800 max-h-[360px] overflow-y-auto pr-1">
+            {queue.map((item) => (
+              <div key={item.id} className="p-4 flex items-center justify-between gap-4 relative group hover:bg-slate-50/20">
+                <div className="flex items-center gap-3 min-w-0 flex-1">
+                  <div className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800 text-slate-500 flex-shrink-0">
+                    <FileText className="w-5 h-5" />
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex justify-between items-center mb-1">
+                      <span className="text-[13px] font-bold text-primary dark:text-white truncate block">{item.name}</span>
+                      <span className="text-[11px] text-slate-400 font-medium ml-2">{item.size}</span>
+                    </div>
 
-            {/* Glowing Laser line sliding down */}
-            <div className="absolute left-0 right-0 h-[2px] bg-accent/80 shadow-[0_0_15px_#10B981] animate-scan z-20 flex justify-center">
-              <div className="w-3/4 h-full bg-white shadow-[0_0_8px_#ffffff]"></div>
-            </div>
+                    {/* Progress slider bar */}
+                    {item.status === 'scanning' && (
+                      <div className="space-y-1">
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                          <div 
+                            className="bg-accent h-full rounded-full transition-all duration-300 ease-out"
+                            style={{ width: `${item.progress}%` }}
+                          ></div>
+                        </div>
+                        <span className="text-[10px] text-accent font-semibold animate-pulse">Reading file & extracting data...</span>
+                      </div>
+                    )}
 
-            {/* Faux Document Preview representing scan activity */}
-            <div className="absolute inset-0 bg-gradient-to-br from-slate-800 to-slate-900 flex flex-col justify-between p-6 opacity-80">
-              <div className="space-y-4 pt-12 opacity-60">
-                <div className="h-4 bg-slate-700 rounded w-1/3"></div>
-                <div className="h-6 bg-slate-700 rounded w-2/3"></div>
-                <div className="h-4 bg-slate-700 rounded w-1/2"></div>
-              </div>
-              <div className="space-y-3 pb-12 opacity-60">
-                <div className="h-8 bg-slate-700 rounded w-full"></div>
-                <div className="h-4 bg-slate-700 rounded w-3/4"></div>
-              </div>
-            </div>
-          </div>
+                    {item.status === 'success' && (
+                      <span className="text-[12px] text-secondary dark:text-emerald-400 font-semibold flex items-center gap-1">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                        Scanned ₹{item.amount} from {item.merchant}
+                      </span>
+                    )}
 
-          {/* Status Display Card */}
-          <div className="mt-8 bg-white text-primary rounded-2xl p-5 w-[85%] max-w-[380px] shadow-2xl flex flex-col gap-3">
-            <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                <Sparkles className="w-4 h-4 text-accent animate-spin" />
-                <span className="font-semibold text-[15px]">Extracting payment details...</span>
+                    {item.status === 'error' && (
+                      <span className="text-[11px] text-red-500 font-semibold flex items-center gap-1 leading-snug">
+                        <AlertCircle className="w-3 h-3 flex-shrink-0" />
+                        {item.error}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {item.status === 'success' && (
+                    <span className="p-1 rounded-full bg-emerald-50 dark:bg-emerald-950/20 text-[#10B981]">
+                      <CheckCircle className="w-4 h-4" />
+                    </span>
+                  )}
+                  {item.status === 'error' && (
+                    <span className="p-1 rounded-full bg-red-50 dark:bg-red-950/20 text-red-500">
+                      <AlertCircle className="w-4 h-4" />
+                    </span>
+                  )}
+                  {item.status === 'scanning' && (
+                    <Loader2 className="w-4 h-4 text-accent animate-spin" />
+                  )}
+                  <button 
+                    onClick={() => clearQueueItem(item.id)}
+                    className="p-1 text-slate-400 hover:text-slate-600 dark:hover:text-white rounded-full transition-colors"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
-              <span className="font-bold text-accent">{scanProgress}%</span>
-            </div>
-            <div className="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-              <div
-                className="bg-accent h-full rounded-full transition-all duration-300 ease-out"
-                style={{ width: `${scanProgress}%` }}
-              ></div>
-            </div>
-            <p className="text-[12px] text-on-surface-variant text-center mt-1">
-              Groq AI is reading the receipt & parsing data.
-            </p>
+            ))}
           </div>
         </div>
       )}

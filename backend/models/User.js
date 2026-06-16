@@ -26,6 +26,11 @@ const userSchema = new mongoose.Schema({
   budgetLimit: {
     type: Number,
     default: 40000
+  },
+  categoryBudgets: {
+    type: Map,
+    of: Number,
+    default: {}
   }
 }, {
   timestamps: true

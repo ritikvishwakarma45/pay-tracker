@@ -26,6 +26,7 @@ const Scan = lazy(() => import('./pages/Scan'));
 const Insights = lazy(() => import('./pages/Insights'));
 const History = lazy(() => import('./pages/History'));
 const Profile = lazy(() => import('./pages/Profile'));
+const Report = lazy(() => import('./pages/Report'));
 
 // Premium Page loading skeleton/spinner
 const PageLoader = () => (
@@ -96,6 +97,8 @@ function AppRoutes() {
       const filtered = prev.filter(n => !n.id.startsWith('budget-'));
       
       const newBudgetNotifs = [];
+      
+      // 1. Global budget limit check
       if (pct >= 100) {
         newBudgetNotifs.push({
           id: `budget-100-${currentYear}-${currentMonth}`,
@@ -115,6 +118,46 @@ function AppRoutes() {
           createdAt: new Date().toISOString()
         });
       }
+
+      // 2. Category-specific budget limits check
+      const catBudgets = user.categoryBudgets || {};
+      const catSpent = {};
+      currentMonthTransactions.forEach(t => {
+        const cat = t.category || 'Others';
+        catSpent[cat] = (catSpent[cat] || 0) + t.amount;
+      });
+
+      const budgetEntries = catBudgets instanceof Map 
+        ? Array.from(catBudgets.entries()) 
+        : Object.entries(catBudgets);
+
+      budgetEntries.forEach(([cat, catLimitVal]) => {
+        const catLimit = Number(catLimitVal);
+        if (isNaN(catLimit) || catLimit <= 0) return; // Skip if no budget set
+
+        const spent = catSpent[cat] || 0;
+        const catPct = (spent / catLimit) * 100;
+
+        if (catPct >= 100) {
+          newBudgetNotifs.push({
+            id: `budget-cat-100-${cat}-${currentYear}-${currentMonth}`,
+            title: `${cat} Budget Exceeded! ⚠️`,
+            message: `You spent ₹${spent.toLocaleString('en-IN')} on ${cat}, exceeding your limit of ₹${catLimit.toLocaleString('en-IN')}.`,
+            type: 'danger',
+            isRead: false,
+            createdAt: new Date().toISOString()
+          });
+        } else if (catPct >= 80) {
+          newBudgetNotifs.push({
+            id: `budget-cat-80-${cat}-${currentYear}-${currentMonth}`,
+            title: `${cat} Budget Warning (80%) 🔔`,
+            message: `You spent ₹${spent.toLocaleString('en-IN')} (${Math.round(catPct)}%) of your ₹${catLimit.toLocaleString('en-IN')} limit for ${cat}.`,
+            type: 'warning',
+            isRead: false,
+            createdAt: new Date().toISOString()
+          });
+        }
+      });
 
       // Check if we already have this specific budget notification in the filtered list
       // (avoid overriding isRead status if already present)
@@ -472,6 +515,7 @@ function AppRoutes() {
                         user, 
                         setUser,
                         budgetLimit, 
+                        categoryBudgets: user?.categoryBudgets || {},
                         formatCurrency, 
                         handleScanSuccess, 
                         setIsAddOpen, 
@@ -572,6 +616,7 @@ function AppRoutes() {
         <Route path="insights" element={<Insights />} />
         <Route path="history" element={<History />} />
         <Route path="profile" element={<Profile />} />
+        <Route path="report" element={<Report />} />
       </Route>
 
       {/* Redirect all unmatched routes back to dashboard root */}
